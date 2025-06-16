@@ -78,12 +78,6 @@ battleships
 
 ---
 
-## 📸 Screenshots
-
-> (Add screenshots here if available, e.g. game start, ship placement, win screen)
-
----
-
 ## 📚 Technical Highlights
 
 - BIOS interrupt `10h` for graphics (screen manipulation)
