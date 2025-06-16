@@ -1,0 +1,2424 @@
+;GROUP MEMBERS
+;ACORDA, RONJAY
+;BADAY, GLENN
+;CRUZ, JEDAIAH
+;FOSTER, KELVIN
+;GALUTERA, KLIDGE
+;PUGYAO, SHEDD
+
+.model small
+.stack
+.data
+;==================================================
+					;HEADERS
+
+	t1 db " ____    _  _____ _____ _     _____ ____  _   _ ___ ____  $"
+	t2 db "| __ )  / \|_   _|_   _| |   | ____/ ___|| | | |_ _|  _ \ $"
+	t3 db "|  _ \ / _ \ | |   | | | |   |  _| \___ \| |_| || || |_) | $"
+	t4 db "| |_) / ___ \| |   | | | |___| |___ ___) |  _  || ||  __/ $"
+	t5 db "|____/_/   \_\_|   |_| |_____|_____|____/|_| |_|___|_|     $"
+	t6 db "Press ANY key to start$"
+	t7 db "Press ANY key to exit$"
+
+	;player 1 display header
+	p1t1 db " ____  _        _ __   _______ ____    _ $"
+	p1t2 db "|  _ \| |      / \\ \ / / ____|  _ \  / |$"
+	p1t3 db "| |_) | |     / _ \\ V /|  _| | |_) | | |$"
+	p1t4 db "|  __/| |___ / ___ \| | | |___|  _ <  | |$"
+	p1t5 db "|_|   |_____/_/   \_\_| |_____|_| \_\ |_|$"
+
+	;player 2 display header
+	p2t1 db " ____  _        _ __   _______ ____    ____  $"
+	p2t2 db "|  _ \| |      / \\ \ / / ____|  _ \  |___ \ $"
+	p2t3 db "| |_) | |     / _ \\ V /|  _| | |_) |   __) |$"
+	p2t4 db "|  __/| |___ / ___ \| | | |___|  _ <   / __/ $"
+	p2t5 db "|_|   |_____/_/   \_\_| |_____|_| \_\ |_____|$"
+
+	turn1 db " _____ _   _ ____  _   _ $"
+	turn2 db "|_   _| | | |  _ \| \ | |$"
+	turn3 db "  | | | | | | |_) |  \| |$"
+	turn4 db "  | | | |_| |  _ <| |\  |$"
+	turn5 db "  |_|  \___/|_| \_\_| \_|$"
+
+	win1 db "__        _____ _   _ ____  $"
+	win2 db "\ \      / /_ _| \ | / ___| $"
+	win3 db " \ \ /\ / / | ||  \| \___ \ $"
+	win4 db "  \ V  V /  | || |\  |___) |$"
+	win5 db "   \_/\_/  |___|_| \_|____/ $"
+
+;======================================================
+					;BOX PLOTTING VARIABLES
+	startrow1 db 6
+	startcol1 db 2
+	endrow1 db 7
+	endcol1 db 5
+
+	;==================================================
+					;BACKEND STUFF
+	;board 2d-array
+	COLNUM db 6
+	BOARDLROW db 6h, 7h 
+	BOARDLCOL db 2h, 5h
+	BOARDCOUNTERROW db 0
+	BOARDCOUNTER dw 0h
+	SHIPCOUNTER dw 0
+	SHIPCOLLISION db 0
+	WHOWON db 0
+
+	;==================================================
+					;MESSAGE 
+
+	;player input output
+	input db "Enter Coordinates: $"
+
+	;Ship counter display
+	ShipInput_Disp1 db "Ship "
+	ShipInput_Disp2 db 31h
+	ShipInput_Disp3 db ":$"
+	ShipInput_Cursor db 0Ah
+
+	;Prompt Messages
+	msgprompt db "Message: $"
+	msgAttempt db "Coordinates already used$"
+	msgShipHit db "Ship Already Hit!$"
+	msgHit db "Hit!!$"
+	msgMiss db "Miss!!!$"
+	msgTurn db "Press Any Key to pass Turn...$"
+	msgShip db "Enter Ship Location...$"
+	msgTarget db "Enter Ship Target...$"
+	msgCollision db "Retry: Ship Collision$"
+
+	;==================================================
+							;PLAYER1 VARIABLES
+	
+	BOARD db ?,?,?,?,?,?
+		  db ?,?,?,?,?,?
+		  db ?,?,?,?,?,?
+		  db ?,?,?,?,?,?
+		  db ?,?,?,?,?,?
+		  db ?,?,?,?,?,?
+
+	
+
+			;length,life,dir,location
+    ship1coor db 3,44h,2,2,?,?,?,?
+			  db 3,'D',?,?,?,?,?,?
+			  db 2,'D',?,?,?,?,?,?
+			  db 2,'U',?,?,?,?,?,?
+			  db 2,'U',?,?,?,?,?,?
+	
+	pl1_targetcoor db ?,?
+	pl1_existingship db 12
+	
+	
+	;==================================================
+						;PLAYER 2 VARIABLES
+	BOARD2 db ?,?,?,?,?,?
+		   db ?,?,?,?,?,?
+		   db ?,?,?,?,?,?
+		   db ?,?,?,?,?,?
+		   db ?,?,?,?,?,?
+		   db ?,?,?,?,?,?
+
+    ship1coor2 db 3,44h,2,2,?,?,?,?
+			  db 3,'D',?,?,?,?,?,?
+			  db 2,'D',?,?,?,?,?,?
+			  db 2,'U',?,?,?,?,?,?
+			  db 2,'U',?,?,?,?,?,?
+	
+	pl2_targetcoor db ?,?
+	pl2_existingship db 12
+	;==================================================
+	
+	
+.code
+;=================MAIN====================
+	mov ax, @data
+	mov ds, ax
+
+	;set screen to 25x80
+	mov ax, 0003h
+	int 10h
+
+	;set page to 0
+	mov ax,0500h
+	int 10h
+
+	CALL startmainmenu
+
+
+;============SHIP PLOTTING==================
+	;PLAYER 1 SECTION
+	;set page to 1
+	mov ax,0501h
+	int 10h
+
+
+
+    ;input and display
+	mov bh, 1
+	CALL header
+	CALL createBoardGUI
+	mov bh, 1
+	CALL playerHud
+	CALL ClearMessage
+	mov ah, 9
+	lea dx, msgShip
+	int 21h
+	CALL pl1Input
+
+
+	;OPTIONAL: Add a tutorial page
+	mov bh, 1
+	CALL nextTurn
+
+	
+	;PLAYER 2 SECTION
+	;set page to 2
+	mov ax,0502h
+	int 10h
+
+	;input and display
+	mov bh, 2
+	CALL header
+	CALL createBoardGUI
+	mov bh, 2
+	CALL playerHud
+	CALL ClearMessage
+	mov ah, 9
+	lea dx, msgShip
+	int 21h
+	CALL pl2Input
+
+	mov bh, 2
+	CALL nextTurn
+
+;============TURN HITTING==================
+	turnhitting_loop:
+
+	;PLAYER 1
+	;set page to 2
+	mov ax,0501h
+	int 10h
+	mov bh, 1
+	CALL player1_header
+	CALL turn_header
+	CALL createBoardGUI
+	mov bh, 1
+	CALL playerHud
+	CALL ClearMessage
+	mov ah, 9
+	lea dx, msgTarget
+	int 21h
+	CALL pl1_Hit_Input
+	mov bh, 1
+	CALL nextTurn
+
+	cmp pl2_existingship, 0h
+	je end_turnhitting
+
+
+	;PLAYER 2
+	mov ax,0502h
+	int 10h
+	mov bh, 2
+	CALL player2_header
+	CALL turn_header
+	CALL createBoardGUI
+	mov bh, 2
+	CALL playerHud
+	CALL ClearMessage
+	mov ah, 9
+	lea dx, msgTarget
+	int 21h
+	CALL pl2_Hit_Input
+	mov bh, 2
+	CALL nextTurn
+
+	cmp pl1_existingship, 0h
+	je end_turnhitting
+	
+	jmp turnhitting_loop
+	
+
+;============WINNER DISPLAY==================
+	end_turnhitting:
+
+	;set winner player and display
+	cmp pl2_existingship, 0h
+	jne toPlayer2_win
+	mov WHOWON, 1h
+
+	jmp toDisplay_Winner
+
+	toPlayer2_win:
+	cmp pl1_existingship, 0h
+	jne toDisplay_Winner
+	mov WHOWON, 2h
+
+	toDisplay_Winner:
+	mov ax,0503h
+	int 10h
+
+	cmp WHOWON, 1h
+	jne DisplayPlayer2_Win
+	CALL player1_win_header
+	CALL Win_Header
+	jmp end_GAME
+
+	DisplayPlayer2_Win:
+	CALL player2_win_header
+	CALL Win_Header
+
+
+	end_GAME:
+	mov ah, 2
+	mov bh, 3
+	mov dx, 0F1Eh
+	int 10h
+
+	mov ah, 9
+	lea dx, t7
+	int 21h
+
+	mov ah, 7
+	int 21h
+
+	mov ah, 4ch
+	int 21h
+
+;=================MODULES===========================;
+;NOTE: All procedures or function, uses PUSH and POP to protect
+	  ;register values and avoid being overrun by different "mov"
+	  ;functions.
+
+
+;=================BOARD/DESIGN SECTION==============;
+
+	;DESCRIPTION
+	;This function acts to reset the Input of a Specific Ship
+	;in Plotting. This Function outputs a message "Retry: Ship Collision"
+	;if a player inputs a Coordinates but have collided with other Ships.
+
+	PROC Validation_ClearInput near
+		push ax
+		push bx
+		push cx				
+		push dx
+		mov ah, 2						;using service 2/10
+		mov dh, ShipInput_Cursor		;resets cursor of input in specific ship
+		mov dl, 33h
+		int 10h
+
+
+		CALL ClearMessage
+		mov ah, 9						;using service 9/21
+		lea dx, msgCollision			;prints "Retry: Ship Collision"
+		int 21h
+
+		mov ah, 7						
+		int 21h
+
+		CALL ClearMessage				;Clears message output point
+		mov ah, 9						;using service 9/21
+		lea dx, msgShip					;prints "Enter ship coor:"
+		int 21h
+
+		mov ax, 0600h					;using service 6/10
+		mov bh, 07h						;clears the input section to be able to input
+		mov ch, ShipInput_Cursor		;a coordinate in a clean manner
+		mov cl, 33h
+		mov dh, ShipInput_Cursor
+		mov dl, 3Fh
+		int 10h
+
+		
+		pop dx
+		pop cx
+		pop bx
+		pop ax
+	ret
+	ENDP Validation_ClearInput
+
+	;DESCRIPTION
+	;This function acts to clear the Input of a User specifically in Turn
+	;Hitting sessions. This allows for a clean input especially if player
+	;needs to retry.
+
+	PROC ClearInput near
+		push ax
+		push bx
+		push cx
+		push dx
+
+		mov ah, 2						;using service 2/10
+		mov dx, 0A2Bh					;this moves the cursor to input
+		int 10h
+
+		mov ax,0600h					;using service 6/10
+		mov cx,0A2Bh					;this replaces the input or clears the input
+		mov dx,0A4Fh					;for a clean manner inputs
+		mov bh,07h
+		int 10h
+
+		pop dx
+		pop cx
+		pop bx
+		pop ax
+	ret
+	ENDP ClearInput
+
+	;DESCRIPTION
+	;This function acts to clear the Message of a User specifically in Turn
+	;Hitting sessions. This allows for a clean display of message especially
+	;to notify the player.
+
+	PROC ClearMessage near
+		push ax
+		push bx
+		push cx
+		push dx
+
+		mov ah, 2						;using service 2/10
+		mov dx, 112Bh					;this moves the cursor to message display
+		int 10h
+
+		mov ax,0600h					;using service 6/10
+		mov cx,112Bh					;this clears the message section
+		mov dx,114Fh					;to allow messages output in clean manner
+		mov bh,07h
+		int 10h
+
+		
+		pop dx
+		pop cx
+		pop bx
+		pop ax
+	ret
+	ENDP ClearMessage
+
+	;DESCRIPTION
+	;This function acts as a main menu before starting the game
+
+	PROC startmainmenu near
+		mov bh, 0						;Passing the page value to bh
+		CALL header						;Calling the header "BATTLESHIPS"
+		
+		mov ah, 2						;moving the cursor for
+		mov dx, 0A1Ch					;press any key to continue
+		int 10h
+
+		mov ah, 9
+		lea dx, t6
+		int 21h 
+
+		mov ah, 7						;acts as temporary suspension
+		int 21h
+	ret
+	ENDP startmainmenu
+
+	;DESCRIPTION
+	;This function acts to create a board using the initial
+	;position of the box
+
+	PROC createBoardGUI near
+		;create board background
+		push cx
+		mov cx, 6
+		boardyaxis:						;This positions the Y Axis for drawing
+			push cx						;loops 6 times to produce 6 rows
+			mov cx, 6
+			boardxaxis:
+			push cx
+			mov bh, 0F0h
+			mov ch, startrow1
+			mov cl, startcol1
+			mov dh, endrow1
+			mov dl, endcol1
+			mov ax, 0600h
+			int 10h
+			
+			pop cx
+			add startcol1, 6h			;Within the nested loop
+			add endcol1, 6h				;loops 6 times to produce 6 columns
+			loop boardxaxis
+			pop cx
+			mov endcol1,5
+			mov startcol1,2
+
+		add startrow1, 3h
+		add endrow1, 3h
+		loop boardyaxis
+		pop cx
+		mov endcol1,5					;resets initial box memory
+		mov startcol1,2
+		mov startrow1, 6
+		mov endrow1, 7
+		ret
+	ENDP createBoardGUI
+
+	PROC nextTurn near
+		push ax
+		push dx
+
+		CALL ClearMessage
+
+		;Next Turn Confirmation
+		mov ah, 2
+		mov dx, 112Bh
+		int 10h
+		
+		mov ah, 9
+		lea dx, msgTurn
+		int 21h 
+		
+		mov ah, 7
+		int 21h
+		
+		mov ax, 0003h
+		int 10h
+
+		pop dx
+		pop ax
+	ret
+	ENDP nextTurn
+
+	;DESCRIPTION
+	;This part function as Displaying what ships are you inputting
+	;for example the first iteration displays "Ship 1: (Input)"
+	;This lines execute until the service 2/21
+
+	PROC ShipInput_Row near
+		push ax
+		push bx
+		push dx
+		mov ah, 2
+		mov dh, ShipInput_Cursor		
+		mov dl, 2Bh						
+		int 10h							
+
+		mov ah, 9
+		lea dx, ShipInput_Disp1
+		int 21h
+
+		mov ah, 2
+
+		mov dh, ShipInput_Cursor
+		mov dl, 33h
+		int 10h
+		pop dx
+		pop bx
+		pop ax
+	ret
+	ENDP ShipInput_Row
+
+;=================HEADERS SECTION==============;
+	;DESCRIPTION
+	;This sections stores the functions for displaying headers
+	;this uses service 2/10 to position the ASCII and service
+	;9/21 to display the ASCII
+
+	PROC header near
+		mov ah, 2
+		mov dx, 000Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, t1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 010Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, t2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 020Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, t3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 030Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, t4
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 040Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, t5
+		int 21h 
+	ret
+	ENDP header
+		
+	PROC player1_header near
+		mov ah, 2
+		mov dx, 0005h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0105h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0205h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0305h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t4
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0405h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t5
+		int 21h 
+	ret
+	ENDP player1_header
+
+	PROC player2_header near
+		mov ah, 2
+		mov dx, 0005h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0105h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0205h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0305h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t4
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0405h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t5
+		int 21h 
+	ret
+	ENDP player2_header
+
+	PROC turn_header near
+		mov ah, 2
+		mov dx, 0032h
+		int 10h
+		
+		mov ah, 9
+		lea dx, turn1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0132h
+		int 10h
+		
+		mov ah, 9
+		lea dx, turn2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0232h
+		int 10h
+		
+		mov ah, 9
+		lea dx, turn3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0332h
+		int 10h
+		
+		mov ah, 9
+		lea dx, turn4
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0432h
+		int 10h
+		
+		mov ah, 9
+		lea dx, turn5
+		int 21h 
+	ret
+	ENDP turn_header
+
+	PROC player1_win_header near
+		mov bh, 3
+		mov ah, 2
+		mov dx, 0313h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0413h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0513h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0613h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t4
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0713h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p1t5
+		int 21h 
+	ret
+	ENDP player1_win_header
+
+	PROC player2_win_header near
+		mov bh, 3
+		mov ah, 2
+		mov dx, 0311h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0411h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0511h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0611h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t4
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0711h
+		int 10h
+		
+		mov ah, 9
+		lea dx, p2t5
+		int 21h 
+	ret
+	ENDP player2_win_header
+
+	PROC Win_Header near
+		mov bh, 3
+		mov ah, 2
+		mov dx, 091Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, win1
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0A1Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, win2
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0B1Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, win3
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0C1Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, win4
+		int 21h 
+		
+
+		mov ah, 2
+		mov dx, 0D1Ah
+		int 10h
+		
+		mov ah, 9
+		lea dx, win5
+		int 21h 
+	ret
+	ENDP Win_Header
+
+
+
+
+;=================SHIP PLOTTING MODULES=================;
+;=================PLAYER 1 SECTION==============;
+
+	;DESCRIPTION
+	;This function as to display the Input and Output Guide
+	;for the players.
+
+	PROC playerHud near
+		push ax
+		push bx
+		push dx
+		mov ah, 2
+		mov dx, 092Bh					;Uses service 2/10
+		int 10h							;To adjust the cursor position for printing input
+		
+		mov ah, 9
+		lea dx, input					;prints input variable
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 102Bh					;As you can see almost all of it uses positioning
+		int 10h							;Then printing the variables
+		
+		mov ah, 9
+		lea dx, msgprompt
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 112Bh
+		int 10h
+		
+		mov ah, 9
+		lea dx, msgTurn
+		int 21h 
+		
+		mov ah, 2
+		mov dx, 0A2Bh
+		int 10h
+		pop dx
+		pop bx
+		pop ax
+		ret
+    ENDP playerHud
+
+	;DESCRIPTION
+	;This function as to accept input from the user 5 times
+	;for the 5 ships to be plotted. This function has inner
+	;function for Edge Detection. Note that there are a lot
+	;of BX register usage for the iteration of SHIPS
+
+	PROC pl1Input near
+		push bx
+		push cx
+		push ax
+		push dx
+
+		mov cx, 0005h					;Iterates 5 times for the ships input
+		pl1_input_loop:
+		cmp SHIPCOLLISION, 1h			;Checks whether Collision is True for the ship
+		jne pl1_proceedInp
+		mov bh, 1
+		CALL Validation_ClearInput		;Clears the input for specific and outputs for collision
+		
+		
+		pl1_proceedInp:
+		mov bh, 01
+		CALL ShipInput_Row				
+		
+		mov SHIPCOLLISION, 0h
+		mov bx, SHIPCOUNTER
+
+		mov ah, 1
+		int 21h
+		cmp al, 31h
+		jb pl1_proceedInp				;Input validation for row
+		cmp al, 36h
+		ja pl1_proceedInp
+		add bl, 2h 
+		mov ship1coor[bx], al
+
+		mov ah, 2						;This section of code represents the input for the ships
+		mov dl, ','						;ROW, COL, DIRECTION is the input and stores in ship1coor variable
+		int 21h							;Inputs proceed until CALL pl1Input_CatchEdge
+
+		mov ah, 1
+		int 21h
+		cmp al, 31h
+		jb pl1_proceedInp				;Input validation for col
+		cmp al, 36h
+		ja pl1_proceedInp
+		inc bl 
+		mov ship1coor[bx], al
+
+		mov ah, 2
+		mov dl, ','
+		int 21h
+
+		mov ah, 1
+		int 21h
+		cmp al, 'u'
+		je pl1_proceedInp				;Input validation for direction
+		cmp al, 'd'
+		je pl1_proceedInp
+		cmp al, 'l'
+		je pl1_proceedInp
+		cmp al, 'r'
+		je pl1_proceedInp
+		sub bl, 2h
+		mov ship1coor[bx], al
+		
+		CALL pl1Input_CatchEdge			;CALLS Catch Edge Detection to unsure that ships are within the board
+
+		cmp SHIPCOLLISION, 1h			;If Collision has occured, it restarts the input for a specific ships
+		je pl1_input_loop
+
+
+		add SHIPCOUNTER, 8h				;Adds 8h to iterate to next ship
+		inc ShipInput_Cursor			;increments cursor input for cleaner manner
+		inc ShipInput_Disp2				;increments cursor display for cleaner manner
+		loop pl1_input_loop					
+
+		
+		mov SHIPCOUNTER, 0				;resets the iteration
+		mov ShipInput_Cursor, 0Ah
+		mov ShipInput_Disp2, 31h
+
+		pop dx
+		pop ax
+		pop cx
+		pop bx
+		
+	ret
+	ENDP pl1Input
+
+	;DESCRIPTION
+	;This function acts to reverse the Direction of player's
+	;input whether if the coordinates specified are over the
+	;supported space of the BOARD
+
+	PROC pl1Input_CatchEdge near
+		push bx
+		mov bx, SHIPCOUNTER				;This cleans the input by subtracting '0'
+		add bl, 2
+		sub ship1coor[bx], 31h
+		inc bl
+		sub ship1coor[bx], 31h
+
+		mov bx, SHIPCOUNTER				;This checks if the ships length is 3 or 2
+		cmp ship1coor[bx], 3h
+		jne toShip2_CatchEdge_step1
+
+		mov bx, SHIPCOUNTER				;If the Ship's Length is 3 and Direction is up
+		inc bl							;it proceeds to check whether the row space is enough for the direction
+		cmp ship1coor[bx], 'U'			;If it is not enought it will proceed to reverse the DIRECTION, otherwise not
+		jne pl1_toDown_3				;This code is duplicated but edited to accomodate LEFT, RIGHT, DOWN
+		inc bl
+		cmp ship1coor[bx], 2h
+		jae pl1_toDown_3
+		dec bl
+		mov ship1coor[bx], 'D'
+		jmp pl1_end_CatchEDGE
+
+		pl1_toDown_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'D'
+		jne pl1_toLeft_3
+		inc bl
+		cmp ship1coor[bx], 3h
+		jbe pl1_toLeft_3
+		dec bl
+		mov ship1coor[bx], 'U'
+		jmp pl1_end_CatchEDGE
+
+		toShip2_CatchEdge_step1:
+		jmp toShip2_CatchEdge
+
+		pl1_toLeft_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'L'
+		jne pl1_toRight_3
+		add bl, 2h
+		cmp ship1coor[bx], 2h
+		jae pl1_toRight_3
+		sub bl, 2h
+		mov ship1coor[bx], 'R'
+		jmp pl1_end_CatchEDGE
+
+		pl1_toRight_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'R'
+		jne pl1_end_CatchEDGE_step1
+		add bl, 2h
+		cmp ship1coor[bx], 3h
+		jbe pl1_end_CatchEDGE_step1
+		sub bl, 2h
+		mov ship1coor[bx], 'L'
+		jmp pl1_end_CatchEDGE
+
+
+		toShip2_CatchEdge:
+
+		mov bx, SHIPCOUNTER				;If the Ship's Length is 2 and Direction is up
+		inc bl							;it proceeds to check whether the row space is enough for the direction
+		cmp ship1coor[bx], 'U'			;If it is not enought it will proceed to reverse the DIRECTION, otherwise not
+		jne pl1_toDown_2				;This code is duplicated but edited to accomodate LEFT, RIGHT, DOWN
+		inc bl
+		cmp ship1coor[bx], 1h
+		jae pl1_toDown_2
+		dec bl
+		mov ship1coor[bx], 'D'
+		jmp pl1_end_CatchEDGE
+
+		pl1_toDown_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'D'
+		jne pl1_toLeft_2
+		inc bl
+		cmp ship1coor[bx], 4h
+		jbe pl1_toLeft_2
+		dec bl
+		mov ship1coor[bx], 'U'
+		jmp pl1_end_CatchEDGE
+
+		pl1_end_CatchEDGE_step1:
+		jmp pl1_end_CatchEDGE
+
+		pl1_toLeft_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'L'
+		jne pl1_toRight_2
+		add bl, 2h
+		cmp ship1coor[bx], 1h
+		jae pl1_toRight_2
+		sub bl, 2h
+		mov ship1coor[bx], 'R'
+		jmp pl1_end_CatchEDGE
+
+		pl1_toRight_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'R'
+		jne pl1_end_CatchEDGE
+		add bl, 2h
+		cmp ship1coor[bx], 4h
+		jbe pl1_end_CatchEDGE
+		sub bl, 2h
+		mov ship1coor[bx], 'L'
+		jmp pl1_end_CatchEDGE
+
+
+		pl1_end_CatchEDGE:
+		mov bx, SHIPCOUNTER
+
+		cmp ship1coor[bx], 3h			;This section identifies whether ship length is 3 or 2
+		jne pl1Input_CatchEdge_end		;If it is 3 it will call the function "pl1_InpBoard_Ship3" to update the board array
+		CALL pl1_InpBoard_Ship3			;otherwise it will call the other to input ship in board for length 2
+		jmp pl1Input_CatchEdge_end2
+		
+		pl1Input_CatchEdge_end:
+		CALL pl1_InpBoard_Ship2
+		pl1Input_CatchEdge_end2:
+		pop bx
+	ret
+	ENDP pl1Input_CatchEdge
+
+	;DESCRIPTION
+	;This is for 3 length Ships.
+	;This function acts as to input the player's input coordinates in Board array
+	;after being conditioned in Edge Catching function. But before the input to
+	;Board, this will first check whether it collides to other ships.
+
+	PROC pl1_InpBoard_Ship3 near
+		push bx
+		push ax
+		mov ax, 0
+
+		mov bx, SHIPCOUNTER				;This function calculates the input of a user to know what
+		add bl, 2h 						;index will we be updating the BOARD array
+		mov al, ship1coor[bx]
+		mul COLNUM
+		inc bl
+		add al, ship1coor[bx]
+		
+		mov bx, ax
+		cmp BOARD[bx], 1h				;This part of code checks whether the specific index of input
+		jne pl1_Ship3_Pin				;is already occupied, if it is occupied it will set SHIPCOLLISION
+		mov SHIPCOLLISION, 1h			;to TRUE then exits to restart the input
+		jmp pl1_endInpBoard_Ship3
+
+		pl1_Ship3_Pin:					;If the index is not yet occupied by any other ships, it will
+		mov bx, ax						;set it as the ship will settle here
+		mov BOARD[bx], 1h
+
+		;DIRECTION
+		mov bx, SHIPCOUNTER				;This part of code checks whether the other parts of the ship
+		inc bl							;are in collision with other ships before setting its remaining
+		cmp ship1coor[bx], 'U'			;bodies. First this checks the direction which is "UP"
+		jne pl1_toDownInp_3
+		mov bx, ax
+		sub bl, COLNUM					;subtracts 6 to row because UP/DOWN affects row
+		cmp BOARD[bx], 1h				;Checks the middle body if it has collided with other
+		jne pl1_UpCollision_Check		;if it collides, it sets SHIPCOLLISION to Trye then restart input
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_UpCollision_Check:
+		sub bl, COLNUM					;Another subtraction of 6 to row to check the last remaining part of ship
+		cmp BOARD[bx], 1h				;if it collides, it sets SHIPCOLLISION to Trye then restart input
+		jne pl1_UpProceed_3
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_UpProceed_3:
+		mov bx, ax						;If there are no collisions, it proceeds to update the BOARD memory
+		sub bl, COLNUM
+		mov BOARD[bx], 1h
+		sub bl, COLNUM
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship3
+
+
+		pl1_toDownInp_3:
+		mov bx, SHIPCOUNTER				;This section has the same elements from the above, however the only things
+		inc bl							;changed is the DIRECTION and operation for LEFT, RIGHT, DOWN.
+		cmp ship1coor[bx], 'D'			;Everything is identical to above
+		jne pl1_toLeftInp_3
+		mov bx, ax
+		add bl, COLNUM
+		cmp BOARD[bx], 1h
+		jne pl1_DownCollision_Check
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_DownCollision_Check:
+		add bl, COLNUM
+		cmp BOARD[bx], 1h
+		jne pl1_DownProceed_3
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_DownProceed_3:
+		mov bx, ax
+		add bl, COLNUM
+		mov BOARD[bx], 1h
+		add bl, COLNUM
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship3
+
+		pl1_toLeftInp_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'L'
+		jne pl1_toRightInp_3
+		mov bx, ax
+		dec bl
+		cmp BOARD[bx], 1h
+		jne pl1_LeftCollision_Check
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_LeftCollision_Check:
+		dec bl
+		cmp BOARD[bx], 1h
+		jne pl1_LeftProceed_3
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_LeftProceed_3:
+		mov bx, ax
+		dec bx
+		mov BOARD[bx], 1h
+		dec bx
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship3
+
+
+		pl1_toRightInp_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'R'
+		jne pl1_endInpBoard_Ship3
+		mov bx, ax
+		inc bl
+		cmp BOARD[bx], 1h
+		jne pl1_RightCollision_Check
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_RightCollision_Check:
+		inc bl
+		cmp BOARD[bx], 1h
+		jne pl1_RightProceed_3
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship3
+		pl1_RightProceed_3:
+		mov bx, ax
+		inc bx
+		mov BOARD[bx], 1h
+		inc bx
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship3
+
+		pl1_endInpBoard_Ship3:
+		cmp SHIPCOLLISION, 1h
+		je pl1_NoDraw
+
+		
+		CALL pl1DrawShipBackend			;If the ships has no collisions, Then it will proceed to CALL the drawShip
+		pl1_NoDraw:
+		pop ax
+		pop bx
+	ret
+	ENDP pl1_InpBoard_Ship3
+
+	;DESCRIPTION
+	;This is for 2 length Ships.
+	;This function acts as to input the player's input coordinates in Board array
+	;after being conditioned in Edge Catching function. But before the input to
+	;Board, this will first check whether it collides to other ships.
+
+	PROC pl1_InpBoard_Ship2 near
+		push bx
+		push ax
+		mov ax, 0
+
+		mov bx, SHIPCOUNTER			
+		add bl, 2h 						;This function calculates the input of a user to know what
+		mov al, ship1coor[bx]			;index will we be updating the BOARD array
+		mul COLNUM
+		inc bl
+		add al, ship1coor[bx]
+		
+		mov bx, ax
+		cmp BOARD[bx], 1h				;This part of code checks whether the specific index of input
+		jne pl1_Ship2_Pin				;is already occupied, if it is occupied it will set SHIPCOLLISION
+		mov SHIPCOLLISION, 1h			;to TRUE then exits to restart the input
+		jmp pl1_endInpBoard_Ship2
+
+		pl1_Ship2_Pin:
+		mov bx, ax						;If the index is not yet occupied by any other ships, it will
+		mov BOARD[bx], 1h				;set it as the ship will settle here
+
+		;DIRECTION
+		mov bx, SHIPCOUNTER				;This part of code checks whether the other parts of the ship
+		inc bl							;are in collision with other ships before setting its remaining
+		cmp ship1coor[bx], 'U'			;bodies. First this checks the direction which is "UP"
+		jne pl1_toDownInp_2
+		mov bx, ax
+		sub bl, COLNUM					;subtracts 6 to row because UP/DOWN affects row
+		cmp BOARD[bx], 1h				;Checks the middle body if it has collided with other
+		jne pl1_UpProceed_2				;if it collides, it sets SHIPCOLLISION to Trye then restart input
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship2
+		pl1_UpProceed_2:
+		mov bx, ax
+		sub bl, COLNUM					;If there are no collisions, it proceeds to update the BOARD memory
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship2
+
+
+		pl1_toDownInp_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'D'			;This section has the same elements from the above, however the only things
+		jne pl1_toLeftInp_2				;changed is the DIRECTION and operation for LEFT, RIGHT, DOWN.
+		mov bx, ax						;Everything is identical to above
+		add bl, COLNUM
+		cmp BOARD[bx], 1h
+		jne pl1_DownProceed_2
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship2
+		pl1_DownProceed_2:
+		mov bx, ax
+		add bl, COLNUM
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship2
+
+		pl1_toLeftInp_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'L'
+		jne pl1_toRightInp_2
+		mov bx, ax
+		dec bl
+		cmp BOARD[bx], 1h
+		jne pl1_LeftProceed_2
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship2
+		pl1_LeftProceed_2:
+		mov bx, ax
+		dec bx
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship2
+
+
+		pl1_toRightInp_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor[bx], 'R'
+		jne pl1_endInpBoard_Ship2
+		mov bx, ax
+		inc bl
+		cmp BOARD[bx], 1h
+		jne pl1_RightProceed_2
+		mov bx, ax
+		mov BOARD[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl1_endInpBoard_Ship2
+		pl1_RightProceed_2:
+		mov bx, ax
+		inc bx
+		mov BOARD[bx], 1h
+		jmp pl1_endInpBoard_Ship2
+
+		pl1_endInpBoard_Ship2:
+		cmp SHIPCOLLISION, 1h
+		je pl1_NoDraw2
+
+		
+		CALL pl1DrawShipBackend			;If the ships has no collisions, Then it will proceed to CALL the drawShip
+		pl1_NoDraw2:
+		pop ax
+		pop bx
+	ret
+	ENDP pl1_InpBoard_Ship2
+
+	;DESCRIPTION	
+	;This function acts as to Draw the Ship location for every iteration
+	;It uses the Board memory to know where to draw
+
+    PROC pl1DrawShipBackend near
+		push cx
+		push bx
+		mov bx, 0
+
+		mov cx, 24h
+		drawboardloop:					;loops the board total length which is 24 hex
+		inc BOARDCOUNTERROW				;Used BOARDCOUNTERROW for specific indexing
+		mov bx, BOARDCOUNTER
+		
+		cmp BOARD[bx], 1h				;this checks whether the specific index is 1h
+		jne enddrawboardloop			;If it is 1 hex, it will draw the ships
+
+		push ax
+		push bx
+		push cx
+		push dx
+		mov ax,0
+		mov bx,0
+		mov dx,0
+		mov cx,0
+		mov bh, 20h
+		mov ch, BOARDLROW[0]			;This data movement is determines the location
+		mov cl,	BOARDLCOL[0]			;of where to draw
+		mov dh, BOARDLROW[1]
+		mov dl,	BOARDLCOL[1]
+		CALL DrawShip					;Calls function to draw the box
+		pop dx
+		pop cx
+		pop bx
+		pop ax
+
+		enddrawboardloop:
+		add BOARDLCOL[0],6h				;This acts to increment the column drawing location
+		add BOARDLCOL[1],6h
+
+		cmp BOARDCOUNTERROW, 6h			;If Column has reached the 6th box of drawing
+		jne exitdrawboard				
+
+		add BOARDLROW[0], 3h			;It Increments the row address to proceed to next row
+		add BOARDLROW[1], 3h
+		mov BOARDLCOL[0],2h				;It resets the column box position to restart from col 1
+		mov BOARDLCOL[1],5h
+		mov BOARDCOUNTERROW, 0h			;It resets the BOARDCOUNTERROW as column resets
+
+		exitdrawboard:
+		inc BOARDCOUNTER				;Increments the indexing of Board
+		loop drawboardloop
+
+		mov BOARDCOUNTER, 0				;resets all variables used up until "ret"
+		pop bx
+		pop cx
+
+		mov BOARDLROW[0], 6h
+		mov BOARDLROW[1], 7h
+		mov BOARDLCOL[0], 2h
+		mov BOARDLCOL[1], 5h
+	
+	ret
+	ENDP pl1DrawShipBackend
+	
+
+	PROC DrawShip near
+		mov ax, 0600h
+		int 10h
+
+	ret
+	ENDP DrawShip
+
+;=================PLAYER 2 SECTION==============;
+	;NOTE: all of function of player 2 was copied from player 1
+	;where everything is the same but just renamed the procedures,
+	;jumps, and used player 2's variables
+
+	PROC pl2Input near
+		push bx
+		push cx
+		push ax
+		push dx
+
+		mov cx, 0005h
+		pl2_input_loop:
+		cmp SHIPCOLLISION, 1h
+		jne pl2_proceedInp
+		mov bh, 2
+		CALL Validation_ClearInput
+
+		pl2_proceedInp:
+		mov bh, 02
+		CALL ShipInput_Row	
+		
+		
+		mov SHIPCOLLISION, 0h
+		mov bx, SHIPCOUNTER
+		mov ah, 1
+		int 21h
+		cmp al, 31h				
+		jb pl2_proceedInp
+		cmp al, 36h
+		ja pl2_proceedInp
+		add bl, 2h 
+		mov ship1coor2[bx], al
+
+		mov ah, 2
+		mov dl, ','
+		int 21h
+
+		mov ah, 1
+		int 21h
+		cmp al, 31h
+		jb pl2_proceedInp
+		cmp al, 36h
+		ja pl2_proceedInp
+		inc bl 
+		mov ship1coor2[bx], al
+
+		mov ah, 2
+		mov dl, ','
+		int 21h
+
+		mov ah, 1
+		int 21h
+		cmp al, 'u'
+		je pl2_proceedInp		
+		cmp al, 'd'
+		je pl2_proceedInp
+		cmp al, 'l'
+		je pl2_proceedInp
+		cmp al, 'r'
+		je pl2_proceedInp
+		sub bl, 2h
+		mov ship1coor2[bx], al
+		
+		CALL pl2Input_CatchEdge
+
+		cmp SHIPCOLLISION, 1h
+		je pl2_input_loop
+
+
+		add SHIPCOUNTER, 8h
+		inc ShipInput_Cursor
+		inc ShipInput_Disp2
+		loop pl2_input_loop
+
+		;resets the iteration
+		mov SHIPCOUNTER, 0
+		mov ShipInput_Cursor, 0Ah
+		mov ShipInput_Disp2, 31h
+
+		pop dx
+		pop ax
+		pop cx
+		pop bx
+		
+		;for every iteration check for collision
+		
+	ret
+	ENDP pl2Input
+
+	PROC pl2Input_CatchEdge near
+		push bx
+		mov bx, SHIPCOUNTER
+		add bl, 2
+		sub ship1coor2[bx], 31h
+		inc bl
+		sub ship1coor2[bx], 31h
+
+		
+
+		mov bx, SHIPCOUNTER
+		cmp ship1coor2[bx], 3h
+		jne pl2_toShip2_CatchEdge_step1
+
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'U'
+		jne pl2_toDown_3
+		inc bl
+		cmp ship1coor2[bx], 2h
+		jae pl2_toDown_3
+		dec bl
+		mov ship1coor2[bx], 'D'
+		jmp pl2_end_CatchEDGE
+
+		pl2_toDown_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'D'
+		jne pl2_toLeft_3
+		inc bl
+		cmp ship1coor2[bx], 3h
+		jbe pl2_toLeft_3
+		dec bl
+		mov ship1coor2[bx], 'U'
+		jmp pl2_end_CatchEDGE
+
+		pl2_toShip2_CatchEdge_step1:
+		jmp pl2_toShip2_CatchEdge
+
+		pl2_toLeft_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'L'
+		jne pl2_toRight_3
+		add bl, 2h
+		cmp ship1coor2[bx], 2h
+		jae pl2_toRight_3
+		sub bl, 2h
+		mov ship1coor2[bx], 'R'
+		jmp pl2_end_CatchEDGE
+
+		pl2_toRight_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'R'
+		jne pl2_end_CatchEDGE_step1
+		add bl, 2h
+		cmp ship1coor2[bx], 3h
+		jbe pl2_end_CatchEDGE_step1
+		sub bl, 2h
+		mov ship1coor2[bx], 'L'
+		jmp pl2_end_CatchEDGE
+
+
+		pl2_toShip2_CatchEdge:
+
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'U'
+		jne pl2_toDown_2
+		inc bl
+		cmp ship1coor2[bx], 1h
+		jae pl2_toDown_2
+		dec bl
+		mov ship1coor2[bx], 'D'
+		jmp pl2_end_CatchEDGE
+
+		pl2_toDown_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'D'
+		jne pl2_toLeft_2
+		inc bl
+		cmp ship1coor2[bx], 4h
+		jbe pl2_toLeft_2
+		dec bl
+		mov ship1coor2[bx], 'U'
+		jmp pl2_end_CatchEDGE
+
+		pl2_end_CatchEDGE_step1:
+		jmp pl2_end_CatchEDGE
+
+		pl2_toLeft_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'L'
+		jne pl2_toRight_2
+		add bl, 2h
+		cmp ship1coor2[bx], 1h
+		jae pl2_toRight_2
+		sub bl, 2h
+		mov ship1coor2[bx], 'R'
+		jmp pl2_end_CatchEDGE
+
+		pl2_toRight_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'R'
+		jne pl2_end_CatchEDGE
+		add bl, 2h
+		cmp ship1coor2[bx], 4h
+		jbe pl2_end_CatchEDGE
+		sub bl, 2h
+		mov ship1coor2[bx], 'L'
+		jmp pl2_end_CatchEDGE
+
+
+		pl2_end_CatchEDGE:
+		mov bx, SHIPCOUNTER
+		cmp ship1coor2[bx], 3h
+		jne pl2Input_CatchEdge_end
+		CALL pl2_InpBoard_Ship3
+		jmp pl2Input_CatchEdge_end2
+		
+		pl2Input_CatchEdge_end:
+		CALL pl2_InpBoard_Ship2
+		pl2Input_CatchEdge_end2:
+		pop bx
+	ret
+	ENDP pl2Input_CatchEdge
+
+	PROC pl2_InpBoard_Ship3 near
+		push bx
+		push ax
+		mov ax, 0
+
+		mov bx, SHIPCOUNTER
+		add bl, 2h 
+		mov al, ship1coor2[bx]
+		mul COLNUM
+		inc bl
+		add al, ship1coor2[bx]
+		
+		mov bx, ax
+		cmp BOARD2[bx], 1h
+		jne pl2_Ship3_Pin
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+
+		pl2_Ship3_Pin:
+		mov bx, ax
+		mov BOARD2[bx], 1h
+
+		;DIRECTION
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'U'
+		jne pl2_toDownInp_3
+		mov bx, ax
+		sub bl, COLNUM
+		cmp BOARD2[bx], 1h
+		jne pl2_UpCollision_Check
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_UpCollision_Check:
+		sub bl, COLNUM
+		cmp BOARD2[bx], 1h
+		jne pl2_UpProceed_3
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_UpProceed_3:
+		mov bx, ax
+		sub bl, COLNUM
+		mov BOARD2[bx], 1h
+		sub bl, COLNUM
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship3
+
+
+		pl2_toDownInp_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'D'
+		jne pl2_toLeftInp_3
+		mov bx, ax
+		add bl, COLNUM
+		cmp BOARD2[bx], 1h
+		jne pl2_DownCollision_Check
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_DownCollision_Check:
+		add bl, COLNUM
+		cmp BOARD2[bx], 1h
+		jne pl2_DownProceed_3
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_DownProceed_3:
+		mov bx, ax
+		add bl, COLNUM
+		mov BOARD2[bx], 1h
+		add bl, COLNUM
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship3
+
+		pl2_toLeftInp_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'L'
+		jne pl2_toRightInp_3
+		mov bx, ax
+		dec bl
+		cmp BOARD2[bx], 1h
+		jne pl2_LeftCollision_Check
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_LeftCollision_Check:
+		dec bl
+		cmp BOARD2[bx], 1h
+		jne pl2_LeftProceed_3
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_LeftProceed_3:
+		mov bx, ax
+		dec bx
+		mov BOARD2[bx], 1h
+		dec bx
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship3
+
+
+		pl2_toRightInp_3:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'R'
+		jne pl2_endInpBoard_Ship3
+		mov bx, ax
+		inc bl
+		cmp BOARD2[bx], 1h
+		jne pl2_RightCollision_Check
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_RightCollision_Check:
+		inc bl
+		cmp BOARD2[bx], 1h
+		jne pl2_RightProceed_3
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship3
+		pl2_RightProceed_3:
+		mov bx, ax
+		inc bx
+		mov BOARD2[bx], 1h
+		inc bx
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship3
+
+		pl2_endInpBoard_Ship3:
+		cmp SHIPCOLLISION, 1h
+		je pl2_NoDraw
+
+		
+		CALL pl2DrawShipBackend
+		pl2_NoDraw:
+		pop ax
+		pop bx
+	ret
+	ENDP pl2_InpBoard_Ship3
+
+	PROC pl2_InpBoard_Ship2 near
+		push bx
+		push ax
+		mov ax, 0
+
+		mov bx, SHIPCOUNTER
+		add bl, 2h 
+		mov al, ship1coor2[bx]
+		mul COLNUM
+		inc bl
+		add al, ship1coor2[bx]
+		
+		mov bx, ax
+		cmp BOARD2[bx], 1h
+		jne pl2_Ship2_Pin
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship2
+
+		pl2_Ship2_Pin:
+		mov bx, ax
+		mov BOARD2[bx], 1h
+
+		;DIRECTION
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'U'
+		jne pl2_toDownInp_2
+		mov bx, ax
+		sub bl, COLNUM
+		cmp BOARD2[bx], 1h
+		jne pl2_UpProceed_2
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship2
+		pl2_UpProceed_2:
+		mov bx, ax
+		sub bl, COLNUM
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship2
+
+
+		pl2_toDownInp_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'D'
+		jne pl2_toLeftInp_2
+		mov bx, ax
+		add bl, COLNUM
+		cmp BOARD2[bx], 1h
+		jne pl2_DownProceed_2
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship2
+		pl2_DownProceed_2:
+		mov bx, ax
+		add bl, COLNUM
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship2
+
+		pl2_toLeftInp_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'L'
+		jne pl2_toRightInp_2
+		mov bx, ax
+		dec bl
+		cmp BOARD2[bx], 1h
+		jne pl2_LeftProceed_2
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship2
+		pl2_LeftProceed_2:
+		mov bx, ax
+		dec bx
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship2
+
+
+		pl2_toRightInp_2:
+		mov bx, SHIPCOUNTER
+		inc bl
+		cmp ship1coor2[bx], 'R'
+		jne pl2_endInpBoard_Ship2
+		mov bx, ax
+		inc bl
+		cmp BOARD2[bx], 1h
+		jne pl2_RightProceed_2
+		mov bx, ax
+		mov BOARD2[bx], 0h
+		mov SHIPCOLLISION, 1h
+		jmp pl2_endInpBoard_Ship2
+		pl2_RightProceed_2:
+		mov bx, ax
+		inc bx
+		mov BOARD2[bx], 1h
+		jmp pl2_endInpBoard_Ship2
+
+		pl2_endInpBoard_Ship2:
+		cmp SHIPCOLLISION, 1h
+		je pl2_NoDraw2
+
+		CALL pl2DrawShipBackend
+		pl2_NoDraw2:
+		pop ax
+		pop bx
+	ret
+	ENDP pl2_InpBoard_Ship2
+
+
+    PROC pl2DrawShipBackend near
+		push cx
+		push bx
+		mov bx, 0
+
+		mov cx, 24h
+		drawboardloop_pl2:
+		inc BOARDCOUNTERROW
+		mov bx, BOARDCOUNTER
+		
+		cmp BOARD2[bx], 1h
+		jne enddrawboardloop_pl2
+
+		push ax
+		push bx
+		push cx
+		push dx
+		mov ax,0
+		mov bx,0
+		mov dx,0
+		mov cx,0
+		mov bh, 10h
+		mov ch, BOARDLROW[0]
+		mov cl,	BOARDLCOL[0]
+		mov dh, BOARDLROW[1]
+		mov dl,	BOARDLCOL[1]
+		CALL DrawShip
+		pop dx
+		pop cx
+		pop bx
+
+		pop ax
+
+		enddrawboardloop_pl2:
+		add BOARDLCOL[0],6h
+		add BOARDLCOL[1],6h
+
+		cmp BOARDCOUNTERROW, 6h
+		jne exitdrawboard_pl2
+
+		add BOARDLROW[0], 3h
+		add BOARDLROW[1], 3h
+		mov BOARDLCOL[0],2h
+		mov BOARDLCOL[1],5h
+		mov BOARDCOUNTERROW, 0h
+
+		exitdrawboard_pl2:
+		inc BOARDCOUNTER
+		loop drawboardloop_pl2
+
+		mov BOARDCOUNTER, 0
+		pop bx
+		pop cx
+
+		mov BOARDLROW[0], 6h
+		mov BOARDLROW[1], 7h
+		mov BOARDLCOL[0], 2h
+		mov BOARDLCOL[1], 5h
+	
+	ret
+	ENDP pl2DrawShipBackend
+
+;=================TURN HITTING SECTION===============;
+;=================PLAYER 1 SECTION=================;
+
+	;DESCRIPTION
+	;This function acts as an input for Player's Target Hitting,
+	;this encompasses input cleaning, and updating board memory
+	;whether it is used, missed, or hit.
+
+	PROC pl1_Hit_Input near
+		push ax
+		push dx
+		push bx
+
+		hit_inputretry:
+		CALL pl1Hit_DisplayBackend		;for every before iteration it prints the BOARD array depending if its hit or not
+		mov bh, 1
+		CALL ClearInput					;Acts to just clear the input for cleaner UI
+
+		mov ah, 1						;uses service 2 for inputs (ROW)
+		int 21h
+		cmp al, 31h				
+		jb hit_inputretry
+		cmp al, 36h
+		ja hit_inputretry
+		sub al, 31h						;cleans the input	
+		mov pl1_targetcoor[0], al		;passes the input to target memory
+
+		mov ah, 2					
+		mov dl, ','
+		int 21h
+
+		mov ah, 1						;same function from the above but for COLUMN
+		int 21h
+		cmp al, 31h				
+		jb hit_inputretry
+		cmp al, 36h
+		ja hit_inputretry
+		sub al, 31h
+		mov pl1_targetcoor[1], al
+
+		mov ah, 7
+		int 21h
+
+		mov ax, 0
+		mov bx, 0
+
+		mov al, pl1_targetcoor[0]		;this section calculates the target index in BOARD array
+		mul COLNUM
+		add al, pl1_targetcoor[1]
+		mov bl, al
+
+		;catch if miss or already hit
+		;2 - dead ship
+		;3 - miss
+
+		cmp BOARD2[bx], 0h				;If the specific index is 0
+		jne to_HitShip					;it updates the BOARD to 3
+		mov BOARD2[bx], 3h				;And notify that it misses, and passes the turn to next player
+		CALL ClearMessage
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 1
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgMiss
+		int 21h
+		pop dx
+		pop ax
+		jmp pl1_endInputHit
+
+		to_HitShip:
+		cmp BOARD2[bx], 1h				;if the specific index is 1
+		jne to_DeadShip					;it updates the BOARD to 2
+		mov BOARD2[bx], 2h				;And notify that it hits a ship, then restarts the input again
+		CALL ClearMessage
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 1
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgHit
+		int 21h
+		pop dx
+		pop ax
+		dec pl2_existingship
+		CALL pl1Hit_DisplayBackend
+		cmp pl2_existingship, 0
+		je pl1_endInputHit
+		jmp hit_inputretry
+
+		to_DeadShip:
+		cmp BOARD2[bx], 2h				;if the specific index is 2
+		jne to_AlreadyDead				;BOARD memory still remains
+		CALL ClearMessage				;but notify that the ship is already hit, then restarts input again
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 1
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgShipHit
+		int 21h
+		pop dx
+		pop ax
+		jmp hit_inputretry
+
+		to_AlreadyDead:
+		cmp BOARD2[bx], 3h				;if the specific index is 3
+		jne pl1_endInputHit				;BOARD memory still remains
+		CALL ClearMessage				;but notify that the coordinates is Used, then restarts input again
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 1
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgAttempt
+		int 21h
+		pop dx
+		pop ax
+		jmp hit_inputretry
+
+		pl1_endInputHit:
+		mov ah, 7
+		int 21h
+		
+
+		pop bx
+		pop dx
+		pop ax
+
+
+	ret
+	ENDP pl1_Hit_Input	
+
+	;DESCRIPTION
+	;This function acts to draw the ships that are hit for every
+	;iteration. This function is duplicated from ship Plotting drawing
+	;Procedure, but only changed the color of drawing depending which player
+	;and condition depending if it is hit or not.
+
+	PROC pl1Hit_DisplayBackend near
+		push cx
+		push bx
+		mov bx, 0
+
+		mov cx, 24h
+		drawboardloop_hit:
+		
+		inc BOARDCOUNTERROW
+		mov bx, BOARDCOUNTER
+		
+		cmp BOARD2[bx], 2h
+		jne enddrawboardloop_hit
+
+		push ax
+		push bx
+		push cx
+		push dx
+		mov ax,0
+		mov bx,0
+		mov dx,0
+		mov cx,0
+		mov bh, 40h
+		mov ch, BOARDLROW[0]
+		mov cl,	BOARDLCOL[0]
+		mov dh, BOARDLROW[1]
+		mov dl,	BOARDLCOL[1]
+		CALL DrawShip
+		pop dx
+		pop cx
+		pop bx
+		pop ax
+
+		enddrawboardloop_hit:
+		add BOARDLCOL[0],6h
+		add BOARDLCOL[1],6h
+
+		cmp BOARDCOUNTERROW, 6h
+		jne exitdrawboard_hit
+
+		add BOARDLROW[0], 3h
+		add BOARDLROW[1], 3h
+		mov BOARDLCOL[0],2h
+		mov BOARDLCOL[1],5h
+		mov BOARDCOUNTERROW, 0h
+
+		exitdrawboard_hit:
+		inc BOARDCOUNTER
+		loop drawboardloop_hit
+
+		mov BOARDCOUNTER, 0
+		pop bx
+		pop cx
+
+		mov BOARDLROW[0], 6h
+		mov BOARDLROW[1], 7h
+		mov BOARDLCOL[0], 2h
+		mov BOARDLCOL[1], 5h
+	ret
+	ENDP pl1Hit_DisplayBackend
+
+;=================PLAYER 2 SECTION=================;
+
+	;NOTE: all of function of player 2 was copied from player 1
+	;where everything is the same but just renamed the procedures,
+	;jumps, and used player 2's variables
+
+	PROC pl2_Hit_Input near
+		push ax
+		push dx
+		push bx
+
+		hit_inputretry_pl2:
+		CALL pl2Hit_DisplayBackend		;for every before iteration it prints the BOARD array depending if its hit or not
+		mov bh, 2
+		CALL ClearInput					;Acts to just clear the input for cleaner UI
+
+		mov ah, 1						;uses service 2 for inputs (ROW)
+		int 21h
+		cmp al, 31h				
+		jb hit_inputretry_pl2
+		cmp al, 36h
+		ja hit_inputretry_pl2
+		sub al, 31h						;cleans the input	
+		mov pl2_targetcoor[0], al		;passes the input to target memory
+
+		mov ah, 2					
+		mov dl, ','
+		int 21h
+
+		mov ah, 1						;same function from the above but for COLUMN
+		int 21h
+		cmp al, 31h				
+		jb hit_inputretry_pl2
+		cmp al, 36h
+		ja hit_inputretry_pl2
+		sub al, 31h
+		mov pl2_targetcoor[1], al
+
+		mov ah, 7
+		int 21h
+
+		mov ax, 0
+		mov bx, 0
+
+		mov al, pl2_targetcoor[0]		;this section calculates the target index in BOARD array
+		mul COLNUM
+		add al, pl2_targetcoor[1]
+		mov bl, al
+
+		;catch if miss or already hit
+		;2 - dead ship
+		;3 - miss
+
+		cmp BOARD[bx], 0h				;If the specific index is 0
+		jne to_HitShip_pl2					;it updates the BOARD to 3
+		mov BOARD[bx], 3h				;And notify that it misses, and passes the turn to next player
+		CALL ClearMessage
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 2
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgMiss
+		int 21h
+		pop dx
+		pop ax
+		jmp pl2_endInputHit
+
+		to_HitShip_pl2:
+		cmp BOARD[bx], 1h				;if the specific index is 1
+		jne to_DeadShip_pl2					;it updates the BOARD to 2
+		mov BOARD[bx], 2h				;And notify that it hits a ship, then restarts the input again
+		CALL ClearMessage
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 2
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgHit
+		int 21h
+		pop dx
+		pop ax
+		dec pl1_existingship
+		CALL pl2Hit_DisplayBackend
+		cmp pl1_existingship, 0
+		je pl2_endInputHit
+		jmp hit_inputretry_pl2
+
+		to_DeadShip_pl2:
+		cmp BOARD[bx], 2h				;if the specific index is 2
+		jne to_AlreadyDead_pl2				;BOARD memory still remains
+		CALL ClearMessage				;but notify that the ship is already hit, then restarts input again
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 2
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgShipHit
+		int 21h
+		pop dx
+		pop ax
+		jmp hit_inputretry_pl2
+
+		to_AlreadyDead_pl2:
+		cmp BOARD[bx], 3h				;if the specific index is 3
+		jne pl2_endInputHit				;BOARD memory still remains
+		CALL ClearMessage				;but notify that the coordinates is Used, then restarts input again
+		push ax
+		push dx
+		mov ah, 2
+		mov bh, 2
+		mov dx, 112Bh
+		int 10h
+		mov ah, 9
+		lea dx, msgAttempt
+		int 21h
+		pop dx
+		pop ax
+		jmp hit_inputretry_pl2
+
+		pl2_endInputHit:
+		mov ah, 7
+		int 21h
+		
+
+		pop bx
+		pop dx
+		pop ax
+
+
+	ret
+	ENDP pl2_Hit_Input	
+
+	PROC pl2Hit_DisplayBackend near
+		push cx
+		push bx
+		mov bx, 0
+
+		mov cx, 24h
+		drawboardloop_hit_pl2:
+		inc BOARDCOUNTERROW
+		mov bx, BOARDCOUNTER
+		
+		cmp BOARD[bx], 2h
+		jne enddrawboardloop_hit_pl2
+
+		push ax
+		push bx
+		push cx
+		push dx
+		mov ax,0
+		mov bx,0
+		mov dx,0
+		mov cx,0
+		mov bh, 50h
+		mov ch, BOARDLROW[0]
+		mov cl,	BOARDLCOL[0]
+		mov dh, BOARDLROW[1]
+		mov dl,	BOARDLCOL[1]
+		CALL DrawShip
+		pop dx
+		pop cx
+		pop bx
+		pop ax
+
+		enddrawboardloop_hit_pl2:
+		add BOARDLCOL[0],6h
+		add BOARDLCOL[1],6h
+
+		cmp BOARDCOUNTERROW, 6h
+		jne exitdrawboard_hit_pl2
+
+		add BOARDLROW[0], 3h
+		add BOARDLROW[1], 3h
+		mov BOARDLCOL[0],2h
+		mov BOARDLCOL[1],5h
+		mov BOARDCOUNTERROW, 0h
+
+		exitdrawboard_hit_pl2:
+		inc BOARDCOUNTER
+		loop drawboardloop_hit_pl2
+
+		mov BOARDCOUNTER, 0
+		pop bx
+		pop cx
+
+		mov BOARDLROW[0], 6h
+		mov BOARDLROW[1], 7h
+		mov BOARDLCOL[0], 2h
+		mov BOARDLCOL[1], 5h
+	ret
+	ENDP pl2Hit_DisplayBackend
+
+	
+
+	PROC Winner near
+		push ax
+		push dx
+
+		mov ax,0503h
+		int 10h
+
+		mov ah, 2
+		mov dl, 39h
+		int 21h
+		
+		pop dx
+		pop ax
+
+	ret
+	ENDP Winner
+	
+	
+END
+
